@@ -3,6 +3,11 @@ const app = express()
 const mySql = require('mysql')
 const cors = require('cors')
 const body_parser = require('body-parser')
+const cookieParser = require('cookie-parser')
+const session = require('express-session')
+const bcrypt = require('bcrypt')
+
+const saltRounds = 10
 
 const connection = mySql.createConnection({
     host: "localhost",
@@ -11,7 +16,24 @@ const connection = mySql.createConnection({
     database: "icube_db"
 })
 
-app.use(cors())
+app.use(cors({
+    origin: ['http://localhost:3000'],
+    methods: ['GET', 'POST'],
+    credentials: true
+}))
+app.use(cookieParser())
+app.use(body_parser.urlencoded({extended: true}))
+app.use(session({
+    key: 'userID',
+    secret: 'icube',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        expires: 86400
+    }
+}))
+
+
 app.use(express.json())
 app.use(body_parser.urlencoded({extended: true}))
 
@@ -40,10 +62,15 @@ app.post('/register', (req, res) => {
     const userName = req.body.userName
     const password = req.body.password
     const sqlInsert = "INSERT INTO icube_db.users (username, password) VALUES (?, ?);"
-    connection.query(sqlInsert, [userName, password], ((err, result) => {
+
+    bcrypt.hash(password, saltRounds, (err, hash) => {
         if (err) return res.send(err)
-        return res.send('Ok')
-    }));
+        connection.query(sqlInsert, [userName, hash], ((err, result) => {
+            if (err) return res.send({ message: 'Some error ' + err.message })
+            return res.send('Ok')
+        }));
+    })
+    
     return
 })
 
@@ -51,18 +78,35 @@ app.post('/register', (req, res) => {
 app.post('/login', (req, res) => {
     const userName = req.body.userName
     const password = req.body.password
-    const sqlInsert = "SELECT * FROM icube_db.users WHERE username = ? AND password = ?;"
+    const sqlInsert = "SELECT * FROM icube_db.users WHERE username = ?;"
     try {
-        connection.query(sqlInsert, [userName, password], ((err, result) => {
-            if (err) throw new Error()
-            return res.send(result)
+        connection.query(sqlInsert, userName, ((err, result) => {
+            if (err) return res.send({message: 'Error with select'})
+            if (result.length > 0) {
+                bcrypt.compare(password, result[0].password, (err, response) => {
+                    if (err) return res.send({ message: 'Error password compare' })
+                    if (response) {
+                        req.session.user = result
+                        //console.log(req.session.user)
+                        return res.send(result)
+                    }
+                    return res.send({message: 'Wrong password'})
+                })
+            } else {
+                return res.send({ message: 'User doesn\'t exists' })
+            }
         }));
     } catch (e) {
-        return res.send({
-            data: 'Some error ' + e
-        })
+        return res.send({ message: 'Some error ' + e.message })
     }
     return
+})
+
+app.get('/login', (req, res) => {
+    if (req.session.user)
+        res.send({loggedIn: true, user: req.session.user})
+    else
+        res.send({loggedIn: false}) 
 })
 
 app.listen(3001, () => {

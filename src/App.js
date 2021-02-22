@@ -11,7 +11,9 @@ function App() {
   const [passwordReg, setPasswordReg] = useState('')
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
-  const [loginStatus, setLoginStatus] = useState('False')
+  const [loginStatus, setLoginStatus] = useState('')
+
+  Axios.defaults.withCredentials = true
 
   useEffect(() => {
     Axios.get('http://localhost:3001/api/get').then((response) => {
@@ -42,10 +44,21 @@ function App() {
       userName: userName,
       password: password
     }).then((response) => {
-      if (response.data.length > 0) setLoginStatus('True')
-      else setLoginStatus('False')
+      if (response.data.length > 0) setLoginStatus(response.data[0].username)
+      else {
+        setLoginStatus(response.data.message)
+      }
     })
   }
+
+  useEffect(() => {
+    Axios.get('http://localhost:3001/login').then((response) => {
+      if (response.data.loggedIn)
+        setLoginStatus(response.data.user[0].username)
+      else setLoginStatus('')
+      //console.log(response)
+    })
+  }, [])
 
   return (
     <div className="App">
@@ -93,10 +106,8 @@ function App() {
         <p></p>
         <button onClick={login}>Login</button>
       </div>
-      <h2>Login status: {loginStatus} - username: {userName}</h2>
+      <h2>{loginStatus}</h2>
     </div>
-
-    
   );
 }
 
