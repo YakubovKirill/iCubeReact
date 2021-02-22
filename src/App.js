@@ -7,6 +7,11 @@ function App() {
   const [mov_name, set_mov_name] = useState('')
   const [review, set_review] = useState('')
   const [movieRevList, setMovList] = useState([])
+  const [userNameReg, setUserNameReg] = useState('')
+  const [passwordReg, setPasswordReg] = useState('')
+  const [userName, setUserName] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginStatus, setLoginStatus] = useState('False')
 
   useEffect(() => {
     Axios.get('http://localhost:3001/api/get').then((response) => {
@@ -20,6 +25,25 @@ function App() {
       movie_review: review
     }).then(() => {
       alert('successfuly')
+    })
+  }
+
+  const register = () => {
+    Axios.post('http://localhost:3001/register', {
+      userName: userNameReg,
+      password: passwordReg
+    }).then((response) => {
+      alert(response)
+    })
+  }
+
+  const login = () => {
+    Axios.post('http://localhost:3001/login', {
+      userName: userName,
+      password: password
+    }).then((response) => {
+      if (response.data.length > 0) setLoginStatus('True')
+      else setLoginStatus('False')
     })
   }
 
@@ -42,6 +66,34 @@ function App() {
           return <ul key={val.id}>Movie name: {val.movie_name} | Movie review: {val.movie_review}</ul>
         })}
       </div>
+        <h2>Register</h2>
+      <div className="form">
+        <p>Nickname</p>
+        <input type="text" name="nickname" onChange={(e) => {
+          setUserNameReg(e.target.value)
+        }}/>
+        <p>Password</p>
+        <input type="password" name="password" onChange={(e) => {
+          setPasswordReg(e.target.value)
+        }}/>
+        <p></p>
+        <button onClick={register}>Register</button>
+      </div>
+
+      <h2>Login</h2>
+      <div className="form">
+        <p>Nickname</p>
+        <input type="text" name="login_nickname" onChange={(e) => {
+          setUserName(e.target.value)
+        }}/>
+        <p>Password</p>
+        <input type="password" name="login_password" onChange={(e) => {
+          setPassword(e.target.value)
+        }}/>
+        <p></p>
+        <button onClick={login}>Login</button>
+      </div>
+      <h2>Login status: {loginStatus} - username: {userName}</h2>
     </div>
 
     
