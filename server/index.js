@@ -6,6 +6,7 @@ const body_parser = require('body-parser')
 const cookieParser = require('cookie-parser')
 const session = require('express-session')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 
 const saltRounds = 10
 
@@ -85,26 +86,55 @@ app.post('/login', (req, res) => {
             if (result.length > 0) {
                 bcrypt.compare(password, result[0].password, (err, response) => {
                     if (err) return res.send({ message: 'Error password compare' })
-                    if (response) {
+                    if (response) {                
+                        const id = result[0].id
+                        const token = jwt.sign({id}, 'jwtSecret', {
+                            expiresIn: 300,
+                        })
                         req.session.user = result
-                        //console.log(req.session.user)
-                        return res.send(result)
+                        return res.json({
+                            auth: true,
+                            token: token,
+                            result: {
+                                userId: result[0].id,
+                                username: result[0].username
+                            }
+                        })
                     }
-                    return res.send({message: 'Wrong password'})
+                    return res.send({ auth: false, message: 'Wrong password'})
                 })
             } else {
-                return res.send({ message: 'User doesn\'t exists' })
+                return res.send({ auth: false, message: 'User doesn\'t exists' })
             }
         }));
     } catch (e) {
-        return res.send({ message: 'Some error ' + e.message })
+        return res.send({ auth: false, message: 'Some error ' + e.message })
     }
-    return
+})
+
+const verifyJWT = (req, res, next) => {
+    const token = req.headers['x-access-token']
+    if(!token) {
+        res.send('No token')
+    } else {
+        jwt.verify(token, 'jwtSecret', (err, decoded) => {
+            if (err) res.json({ auth: false, message: 'failed auth' })
+            else req.userId = decoded.id
+            next()
+        })
+    }
+}  
+
+app.get('/isAuth', verifyJWT , (req, res) => {
+    res.send('You are auth')
 })
 
 app.get('/login', (req, res) => {
     if (req.session.user)
-        res.send({loggedIn: true, user: req.session.user})
+        res.send({loggedIn: true, user: {
+            id: req.session.user[0].id,
+            username: req.session.user[0].username
+        }})
     else
         res.send({loggedIn: false}) 
 })
